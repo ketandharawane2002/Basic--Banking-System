@@ -1,0 +1,65 @@
+package com.example.bank.model;
+
+import com.example.bank.exception.InvalidAmountException;
+import com.example.bank.exception.InsufficientFundsException;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+public abstract class Account {
+    private static final AtomicLong SEQUENCE = new AtomicLong(1000000000L);
+
+    private final String accountNumber;
+    private final String ownerName;
+    protected BigDecimal balance;
+    private final LocalDateTime createdAt;
+    private final List<Transaction> transactions = new ArrayList<>();
+
+    public Account(String ownerName, BigDecimal initialDeposit) {
+        this.accountNumber = String.valueOf(SEQUENCE.getAndIncrement());
+        this.ownerName = ownerName;
+        this.balance = initialDeposit == null ? BigDecimal.ZERO : initialDeposit;
+        this.createdAt = LocalDateTime.now();
+        if (this.balance.compareTo(BigDecimal.ZERO) > 0) {
+            addTransaction(new Transaction(Transaction.Type.DEPOSIT, this.balance, "Initial deposit", this.balance));
+        }
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public synchronized BigDecimal getBalance() {
+        return balance;
+    }
+
+    public synchronized void addTransaction(Transaction tx) {
+        transactions.add(tx);
+    }
+
+    public List<Transaction> getTransactionHistory() {
+        return Collections.unmodifiableList(transactions);
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public synchronized void deposit(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException("Deposit amount must be greater than zero.");
+        }
+        balance = balance.add(amount);
+        addTransaction(new Transaction(Transaction.Type.DEPOSIT, amount, "Deposit", balance));
+    }
+
+    public abstract void withdraw(BigDecimal amount) throws InsufficientFundsException;
+}
